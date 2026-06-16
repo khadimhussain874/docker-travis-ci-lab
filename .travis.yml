@@ -12,7 +12,7 @@ services:
 # Environment variables
 env:
   global:
-    - DOCKER_IMAGE_NAME=your-dockerhub-username/docker-travis-ci-lab
+    - DOCKER_IMAGE_NAME=$DOCKER_USERNAME/docker-travis-ci-lab
     - NODE_ENV=test
 
 # Cache node_modules for faster builds
@@ -24,7 +24,7 @@ cache:
 install:
   - npm ci
 
-# Run tests before building Docker image
+# Run tests and build Docker image
 script:
   - npm test
   - docker build -t $DOCKER_IMAGE_NAME:$TRAVIS_BUILD_NUMBER .
@@ -38,12 +38,16 @@ before_deploy:
   - docker stop test-container
   - docker rm test-container
 
-# Deploy section (will be configured in next task)
-deploy:
-  provider: script
-  script: echo "Deploy configuration will be added in next task"
-  on:
-    branch: main
+# Deploy to Docker Hub
+after_success:
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+  - docker push $DOCKER_IMAGE_NAME:$TRAVIS_BUILD_NUMBER
+  - docker push $DOCKER_IMAGE_NAME:latest
+
+# Only deploy on main branch
+branches:
+  only:
+    - main
 
 # Notification settings
 notifications:
