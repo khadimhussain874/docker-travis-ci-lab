@@ -1,0 +1,10 @@
+version: '3.8'
+
+services:
+  sut:
+    build:
+      context: .
+      target: testing
+    environment:
+      - NODE_ENV=test
+    command: npm test

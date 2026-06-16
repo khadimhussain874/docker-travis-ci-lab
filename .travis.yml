@@ -24,21 +24,62 @@ cache:
 install:
   - npm ci
 
-# Run tests and build Docker image
+# Run tests in multiple stages
 script:
+  # Stage 1: Run unit tests locally
+  - echo "Running unit tests..."
   - npm test
-  - docker build -t $DOCKER_IMAGE_NAME:$TRAVIS_BUILD_NUMBER .
-  - docker build -t $DOCKER_IMAGE_NAME:latest .
+  
+  # Stage 2: Build Docker image (includes testing stage)
+  - echo "Building Docker image with tests..."
+  - docker build --target testing -t $DOCKER_IMAGE_NAME:test .
+  
+  # Stage 3: Build production image
+  - echo "Building production Docker image..."
+  - docker build --target production -t $DOCKER_IMAGE_NAME:$TRAVIS_BUILD_NUMBER .
+  - docker build --target production -t $DOCKER_IMAGE_NAME:latest .
 
-# Test the Docker image
+# Test the production Docker image
 before_deploy:
+  - echo "Testing production Docker image..."
+  
+  # Start container
   - docker run -d -p 3000:3000 --name test-container $DOCKER_IMAGE_NAME:latest
-  - sleep 10
+  
+  # Wait for container to start
+  - sleep 15
+  
+  # Test health endpoint
   - docker exec test-container curl -f http://localhost:3000/health || exit 1
+  
+  # Test main endpoint
+  - docker exec test-container curl -f http://localhost:3000 || exit 1
+  
+  # Check container logs
+  - docker logs test-container
+  
+  # Test from host machine
+  - curl -f http://localhost:3000/health || exit 1
+  
+  # Clean up
   - docker stop test-container
   - docker rm test-container
 
 # Deploy to Docker Hub
-# Deploy using custom script
 after_success:
-  - ./deploy.sh
+  - echo "Deploying to Docker Hub..."
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+  - docker push $DOCKER_IMAGE_NAME:$TRAVIS_BUILD_NUMBER
+  - docker push $DOCKER_IMAGE_NAME:latest
+  - echo "Deployment completed successfully!"
+
+# Only build main branch and pull requests
+branches:
+  only:
+    - main
+
+# Notification settings
+notifications:
+  email:
+    on_success: change
+    on_failure: always

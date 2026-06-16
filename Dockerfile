@@ -1,23 +1,41 @@
-# Use official Node.js runtime as base image
-FROM node:18-alpine
+# Multi-stage build for testing and production
 
-# Set working directory in container
+# Stage 1: Testing stage
+FROM node:18-alpine AS testing
 WORKDIR /usr/src/app
 
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install all dependencies (including dev dependencies)
+RUN npm ci
 
-# Copy application code
+# Copy source code
 COPY . .
 
-# Create non-root user for security
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nodejs -u 1001
+# Run tests
+RUN npm test
 
-# Change ownership of app directory
+# Stage 2: Production stage
+FROM node:18-alpine AS production
+
+# Set working directory
+WORKDIR /usr/src/app
+
+# Copy package files
+COPY package*.json ./
+
+# Install only production dependencies
+RUN npm ci --only=production && npm cache clean --force
+
+# Copy application code
+COPY --from=testing /usr/src/app/app.js ./
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+
+# Change ownership
 RUN chown -R nodejs:nodejs /usr/src/app
 USER nodejs
 
