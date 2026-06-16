@@ -22,3 +22,5 @@ const server = app.listen(port, () => {
 });
 
 module.exports = { app, server };
+console.log('Build triggered at: ' + new Date());
+console.log('Build triggered at: ' + new Date());
