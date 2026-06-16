@@ -39,18 +39,6 @@ before_deploy:
   - docker rm test-container
 
 # Deploy to Docker Hub
+# Deploy using custom script
 after_success:
-  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
-  - docker push $DOCKER_IMAGE_NAME:$TRAVIS_BUILD_NUMBER
-  - docker push $DOCKER_IMAGE_NAME:latest
-
-# Only deploy on main branch
-branches:
-  only:
-    - main
-
-# Notification settings
-notifications:
-  email:
-    on_success: change
-    on_failure: always
+  - ./deploy.sh
