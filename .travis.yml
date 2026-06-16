@@ -1,0 +1,52 @@
+# Specify the programming language
+language: node_js
+
+# Specify Node.js version
+node_js:
+  - "18"
+
+# Enable Docker service
+services:
+  - docker
+
+# Environment variables
+env:
+  global:
+    - DOCKER_IMAGE_NAME=your-dockerhub-username/docker-travis-ci-lab
+    - NODE_ENV=test
+
+# Cache node_modules for faster builds
+cache:
+  directories:
+    - node_modules
+
+# Install dependencies
+install:
+  - npm ci
+
+# Run tests before building Docker image
+script:
+  - npm test
+  - docker build -t $DOCKER_IMAGE_NAME:$TRAVIS_BUILD_NUMBER .
+  - docker build -t $DOCKER_IMAGE_NAME:latest .
+
+# Test the Docker image
+before_deploy:
+  - docker run -d -p 3000:3000 --name test-container $DOCKER_IMAGE_NAME:latest
+  - sleep 10
+  - docker exec test-container curl -f http://localhost:3000/health || exit 1
+  - docker stop test-container
+  - docker rm test-container
+
+# Deploy section (will be configured in next task)
+deploy:
+  provider: script
+  script: echo "Deploy configuration will be added in next task"
+  on:
+    branch: main
+
+# Notification settings
+notifications:
+  email:
+    on_success: change
+    on_failure: always
